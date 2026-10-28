@@ -1,0 +1,72 @@
+# Full system (Step 5): frontend + backend + Camunda 8 + PostgreSQL.
+#   docker compose up -d --build
+#
+#   Frontend  http://localhost:3000
+#   Backend   http://localhost:8081
+#   Camunda   http://localhost:8080   (Operate /operate, Tasklist /tasklist)
+#   Postgres  localhost:5432
+name: leave-system
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: leave-postgres
+    environment:
+      POSTGRES_DB: leavedb
+      POSTGRES_USER: leave
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-leave}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U leave -d leavedb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  camunda:
+    image: camunda/camunda:${CAMUNDA_VERSION:-8.9.0}
+    container_name: leave-camunda
+    ports:
+      - "8080:8080"
+      - "26500:26500"
+      - "9600:9600"
+    environment:
+      # Local learning setup only: no login required for the APIs.
+      CAMUNDA_SECURITY_AUTHENTICATION_UNPROTECTED: "true"
+    volumes:
+      - camunda-data:/usr/local/camunda/data
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    container_name: leave-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      camunda:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_URL: jdbc:postgresql://postgres:5432/leavedb
+      DB_USER: leave
+      DB_PASSWORD: ${DB_PASSWORD:-leave}
+      CAMUNDA_GRPC_ADDRESS: http://camunda:26500
+      CAMUNDA_REST_ADDRESS: http://camunda:8080
+    ports:
+      - "8081:8081"
+    # Camunda can take a while to start; keep retrying until it is reachable.
+    restart: on-failure
+
+  frontend:
+    build: ./frontend
+    container_name: leave-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+volumes:
+  postgres-data:
+  camunda-data:
