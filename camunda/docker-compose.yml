@@ -1,0 +1,25 @@
+# Camunda 8 Self-Managed for LOCAL DEVELOPMENT (Step 4).
+# One container runs Zeebe + Operate + Tasklist + REST API.
+#   REST / UI : http://localhost:8080   (Operate: /operate, Tasklist: /tasklist)
+#   gRPC      : localhost:26500
+#
+# Set CAMUNDA_VERSION in camunda/.env to the version you intend to use, and keep
+# it in line with camunda.version in backend/pom.xml.
+services:
+  camunda:
+    image: camunda/camunda:${CAMUNDA_VERSION}
+    container_name: camunda
+    ports:
+      - "8080:8080"
+      - "26500:26500"
+      - "9600:9600"
+    environment:
+      # Local learning setup only: no login required for the APIs.
+      # Remove this and configure authentication for anything shared.
+      CAMUNDA_SECURITY_AUTHENTICATION_UNPROTECTED: "true"
+    volumes:
+      - camunda-data:/usr/local/camunda/data
+    restart: unless-stopped
+
+volumes:
+  camunda-data:

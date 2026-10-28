@@ -1,0 +1,18 @@
+# Used when the backend runs in Docker Compose (SPRING_PROFILES_ACTIVE=docker).
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://postgres:5432/leavedb}
+    username: ${DB_USER:leave}
+    password: ${DB_PASSWORD:leave}
+  jpa:
+    hibernate:
+      ddl-auto: update
+  h2:
+    console:
+      enabled: false
+
+camunda:
+  client:
+    mode: self-managed
+    grpc-address: ${CAMUNDA_GRPC_ADDRESS:http://camunda:26500}
+    rest-address: ${CAMUNDA_REST_ADDRESS:http://camunda:8080}

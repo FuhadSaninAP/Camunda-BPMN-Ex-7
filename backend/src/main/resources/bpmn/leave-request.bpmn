@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:zeebe="http://camunda.org/schema/zeebe/1.0" xmlns:modeler="http://camunda.org/schema/modeler/1.0" id="Definitions_Leave" targetNamespace="http://bpmn.io/schema/bpmn" modeler:executionPlatform="Camunda Cloud" modeler:executionPlatformVersion="8.8.0">
+  <bpmn:process id="leave-request" name="Leave request" isExecutable="true">
+    <bpmn:startEvent id="Start_Leave" name="Leave requested">
+      <bpmn:outgoing>F_start</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="Task_Validate" name="Validate leave request">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="validate-leave" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>F_start</bpmn:incoming>
+      <bpmn:outgoing>F_validated</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="GW_Valid" name="Request valid?" default="F_invalid">
+      <bpmn:incoming>F_validated</bpmn:incoming>
+      <bpmn:outgoing>F_valid</bpmn:outgoing>
+      <bpmn:outgoing>F_invalid</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="Task_Approval" name="Manager approval">
+      <bpmn:extensionElements>
+        <zeebe:userTask />
+        <zeebe:formDefinition formId="leave-approval" />
+      </bpmn:extensionElements>
+      <bpmn:incoming>F_valid</bpmn:incoming>
+      <bpmn:outgoing>F_decided</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="GW_Approved" name="Approved?" default="F_notApproved">
+      <bpmn:incoming>F_decided</bpmn:incoming>
+      <bpmn:outgoing>F_approved</bpmn:outgoing>
+      <bpmn:outgoing>F_notApproved</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_FinalizeApproved" name="Finalize as approved">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="finalize-leave" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=&quot;APPROVED&quot;" target="outcome" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>F_approved</bpmn:incoming>
+      <bpmn:outgoing>F_finApproved</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_Approved" name="Leave approved">
+      <bpmn:incoming>F_finApproved</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:exclusiveGateway id="GW_Merge" name="Merge">
+      <bpmn:incoming>F_invalid</bpmn:incoming>
+      <bpmn:incoming>F_notApproved</bpmn:incoming>
+      <bpmn:outgoing>F_toRejected</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_FinalizeRejected" name="Finalize as rejected">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="finalize-leave" />
+        <zeebe:ioMapping>
+          <zeebe:input source="=&quot;REJECTED&quot;" target="outcome" />
+        </zeebe:ioMapping>
+      </bpmn:extensionElements>
+      <bpmn:incoming>F_toRejected</bpmn:incoming>
+      <bpmn:outgoing>F_finRejected</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_Rejected" name="Leave rejected">
+      <bpmn:incoming>F_finRejected</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="F_start" sourceRef="Start_Leave" targetRef="Task_Validate" />
+    <bpmn:sequenceFlow id="F_validated" sourceRef="Task_Validate" targetRef="GW_Valid" />
+    <bpmn:sequenceFlow id="F_valid" name="valid" sourceRef="GW_Valid" targetRef="Task_Approval">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">=valid</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_invalid" name="invalid" sourceRef="GW_Valid" targetRef="GW_Merge" />
+    <bpmn:sequenceFlow id="F_decided" sourceRef="Task_Approval" targetRef="GW_Approved" />
+    <bpmn:sequenceFlow id="F_approved" name="approved" sourceRef="GW_Approved" targetRef="Task_FinalizeApproved">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">=approved</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_notApproved" name="rejected" sourceRef="GW_Approved" targetRef="GW_Merge" />
+    <bpmn:sequenceFlow id="F_finApproved" sourceRef="Task_FinalizeApproved" targetRef="End_Approved" />
+    <bpmn:sequenceFlow id="F_toRejected" sourceRef="GW_Merge" targetRef="Task_FinalizeRejected" />
+    <bpmn:sequenceFlow id="F_finRejected" sourceRef="Task_FinalizeRejected" targetRef="End_Rejected" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="leave-request">
+      <bpmndi:BPMNShape id="S_Start" bpmnElement="Start_Leave"><dc:Bounds x="152" y="182" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="130" y="225" width="80" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Validate" bpmnElement="Task_Validate"><dc:Bounds x="240" y="160" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GWValid" bpmnElement="GW_Valid" isMarkerVisible="true"><dc:Bounds x="395" y="175" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="383" y="145" width="74" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Approval" bpmnElement="Task_Approval"><dc:Bounds x="500" y="160" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GWApproved" bpmnElement="GW_Approved" isMarkerVisible="true"><dc:Bounds x="655" y="175" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="656" y="145" width="50" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_FinApproved" bpmnElement="Task_FinalizeApproved"><dc:Bounds x="760" y="160" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EndApproved" bpmnElement="End_Approved"><dc:Bounds x="922" y="182" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="900" y="225" width="80" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Merge" bpmnElement="GW_Merge" isMarkerVisible="true"><dc:Bounds x="655" y="355" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="662" y="412" width="36" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_FinRejected" bpmnElement="Task_FinalizeRejected"><dc:Bounds x="760" y="340" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EndRejected" bpmnElement="End_Rejected"><dc:Bounds x="922" y="362" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="902" y="405" width="76" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_start" bpmnElement="F_start"><di:waypoint x="188" y="200" /><di:waypoint x="240" y="200" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_validated" bpmnElement="F_validated"><di:waypoint x="340" y="200" /><di:waypoint x="395" y="200" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_valid" bpmnElement="F_valid"><di:waypoint x="445" y="200" /><di:waypoint x="500" y="200" /><bpmndi:BPMNLabel><dc:Bounds x="460" y="182" width="26" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_invalid" bpmnElement="F_invalid"><di:waypoint x="420" y="225" /><di:waypoint x="420" y="380" /><di:waypoint x="655" y="380" /><bpmndi:BPMNLabel><dc:Bounds x="425" y="300" width="34" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_decided" bpmnElement="F_decided"><di:waypoint x="600" y="200" /><di:waypoint x="655" y="200" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_approved" bpmnElement="F_approved"><di:waypoint x="705" y="200" /><di:waypoint x="760" y="200" /><bpmndi:BPMNLabel><dc:Bounds x="712" y="182" width="44" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_notApproved" bpmnElement="F_notApproved"><di:waypoint x="680" y="225" /><di:waypoint x="680" y="355" /><bpmndi:BPMNLabel><dc:Bounds x="686" y="280" width="42" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_finApproved" bpmnElement="F_finApproved"><di:waypoint x="860" y="200" /><di:waypoint x="922" y="200" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_toRejected" bpmnElement="F_toRejected"><di:waypoint x="705" y="380" /><di:waypoint x="760" y="380" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_finRejected" bpmnElement="F_finRejected"><di:waypoint x="860" y="380" /><di:waypoint x="922" y="380" /></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
